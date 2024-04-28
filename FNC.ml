@@ -1,4 +1,5 @@
-type fp = X of int | Vrai | Faux | Et of fp * fp | Ou of fp * fp | Imp of fp * fp | Equiv of fp * fp | Non of fp ;;
+# type fp = X of int | Vrai | Faux | Et of fp * fp | Ou of fp * fp | Imp of fp * fp | Equiv of fp * fp | Non of fp ;;
+# type cond = Y of int | Vrai_bis | Faux_bis | Si of cond * cond * cond ;;
 
 let rec elim_equiv p = match p with
 		       X(i)->X(i)
@@ -46,4 +47,20 @@ let rec inverse_ou_et p = match p with (*Finir cette partie.*)
 		 	 |Ou(pa,pb)->Ou(pa,pb)
 		 	 |Imp(pa,pb)->Imp(pa,pb)
 		 	 |Equiv(pa,pb)->Equiv(pa,pb)
-		 	 |Non(pa)->Non(pa)
+		 	 |Non(pa)->Non(pa);;
+
+
+let rec si_si p = match p with
+	Si(Si(a, b, c), d, e) -> 
+		Si(si_si a, 
+		   si_si Si(b, si_si d, si_si e), 
+		   si_si Si(c, si_si d, si_si e))
+	| a -> a ;; (*y a besoin de ca?*)
+
+let for_nor p = 
+	elim_equiv p;
+	elim_imp p;
+	repousse_neg p;
+	inverse_ou_et p;
+	si_si p ;;
+
