@@ -1,66 +1,134 @@
-# type fp = X of int | Vrai | Faux | Et of fp * fp | Ou of fp * fp | Imp of fp * fp | Equiv of fp * fp | Non of fp ;;
-# type cond = Y of int | Vrai_bis | Faux_bis | Si of cond * cond * cond ;;
+type cond = | W of int | Vrai_bis | Faux_bis | Si of cond * cond * cond 
+type prop = | V of int | Vrai | Faux | Et of prop * prop | Ou of prop * prop | Non of prop | Imp of prop * prop | Equiv of prop * prop 
+type env = (int * bool) list;;
+(* P1 *)
+let rec prop_to_cond prop =
+  match prop with
+  | V(i) -> W(i)
+  | Vrai -> Vrai_bis | Faux -> Faux_bis
+  | Et(p1, p2) -> Si(prop_to_cond p1, prop_to_cond p2, Vrai_bis)
+  | Ou(p1, p2) -> Si(prop_to_cond p1, Vrai_bis, prop_to_cond p2)
+  | Non(p) -> Si(prop_to_cond p, Faux_bis, Vrai_bis)
+  | Imp(p1, p2) -> prop_to_cond(Ou(Non(p1),p2))
+  | Equiv(p1, p2) -> prop_to_cond(Et(Imp(p1,p2),Imp(p2,p1))) 
 
-let rec elim_equiv p = match p with
-		       X(i)->X(i)
-		       |Vrai->Vrai
-		       |Faux->Faux
-		       |Et(pa,pb)->Et(elim_equiv pa,elim_equiv pb)
-		       |Ou(pa,pb)->Ou(elim_equiv pa,elim_equiv pb)
-		       |Imp(pa,pb)->Imp(elim_equiv pa,elim_equiv pb)
-		       |Equiv(pa,pb)->Et(Imp((elim_equiv pa), (elim_equiv pb)),Imp((elim_equiv pb), (elim_equiv pa)))
-		       |Non(pa)->Non(elim_equiv pa);;
-		   
-let rec elim_imp p = match p with
-		 X(i)->X(i)
-		 |Vrai->Vrai
-		 |Faux->Faux
-		 |Et(pa,pb)->Et(elim_imp pa,elim_imp pb)
-		 |Ou(pa,pb)->Ou(elim_imp pa,elim_imp pb)
-		 |Imp(pa,pb)->Ou(Non((elim_imp pa)), (elim_imp pb))
-		 |Equiv(pa,pb)->Equiv(elim_imp pa,elim_imp pb)
-		 |Non(pa)->Non(pa);;
-		 
-let rec repousse_neg p = match p with
-		 	 X(i)->X(i)
-		 	 |Vrai->Vrai
-		 	 |Faux->Faux
-		 	 |Et(pa,pb)->Et(repousse_neg pa, repousse_neg pb)
-		 	 |Ou(pa,pb)->Ou(repousse_neg pa, repousse_neg pb)
-		 	 |Imp(pa,pb)->Imp(repousse_neg pa, repousse_neg pb)
-		 	 |Equiv(pa,pb)->Equiv(repousse_neg pa, repousse_neg pb)
-		 	 |Non(pa)->match pa with
-		 	 	   X(i)->X(i)
-		 		   |Vrai->Faux
-		 		   |Faux->Vrai
-		 		   |Et(pa,pb)->Ou(repousse_neg (Non(pa)), repousse_neg (Non(pb)))
-		 		   |Ou(pa,pb)->Et(repousse_neg (Non(pa)), repousse_neg (Non(pb)))
-		 		   |Imp(pa,pb)->Ou(repousse_neg (Non(pa)), repousse_neg pb)
-		 		   |Equiv(pa,pb)->Ou(repousse_neg(Non(Imp(pa,pb))),repousse_neg(Imp(pb,pa)))
-		 		   |Non(pa)->repousse_neg(Non(pa));;
+(* P2 *)
+let rec for_nor p = 
+  match p with
+  | W(i) -> W(i)
+  | Vrai_bis | Faux_bis -> p
+  | Si(p1, p2, p3) -> match (p1,p2,p3) with
+    |(W(i),p2,p3)->Si(W(i),for_nor p2,for_nor p3)
+    |(Vrai_bis,p2,p3)->Si(Vrai_bis,for_nor p2,for_nor p3)
+    |(Faux_bis,p2,p3)->Si(Faux_bis,for_nor p2,for_nor p3)
+    |(Si(pa,pb,pc),p2,p3)-> for_nor (Si(pa,for_nor (Si(pb,p2,p3)),for_nor (Si(pc,p2,p3))));; 
 
-let rec inverse_ou_et p = match p with (*Finir cette partie.*)
-			  X(i)->X(i)
-		 	 |Vrai->Vrai
-		 	 |Faux->Faux
-		 	 |Et(pa,pb)->Et(pa,pb)
-		 	 |Ou(pa,pb)->Ou(pa,pb)
-		 	 |Imp(pa,pb)->Imp(pa,pb)
-		 	 |Equiv(pa,pb)->Equiv(pa,pb)
-		 	 |Non(pa)->Non(pa);;
+(* P3 *)
+let rec cherche_couple e i = match e with
+    []->false,false
+  |(x,b)::e0->if x=i
+      then true,b
+      else cherche_couple e0 i;;
 
 
-let rec si_si p = match p with
-	Si(Si(a, b, c), d, e) -> 
-		Si(si_si a, 
-		   si_si Si(b, si_si d, si_si e), 
-		   si_si Si(c, si_si d, si_si e))
-	| a -> a ;; (*y a besoin de ca?*)
+let rec eval f e = match f with
+    W(i)-> let a,b = cherche_couple e i in
+      if a = true
+      then b
+      else false
+  |Vrai_bis->true
+  |Faux_bis->false
+  |Si(g,h,k)-> match g with
+      W(i)-> let a,b = cherche_couple e i in
+        if a = true
+        then if b = true
+          then eval h e
+          else eval k e
+        else let e1 = (i,true) :: e in
+          let e2 = (i,false) :: e in
+          eval h e1 && eval k e2
+    |Vrai_bis->eval h e
+    |Faux_bis->eval k e
+    |Si(m,n,o)-> false;;
 
-let for_nor p = 
-	elim_equiv p;
-	elim_imp p;
-	repousse_neg p;
-	inverse_ou_et p;
-	si_si p ;;
 
+
+(* Convertir une proposition en chaîne de caractères *)
+let string_of_prop prop =  
+  let rec string_of_prop_aux prop =
+    match prop with
+    | V(i) -> Printf.sprintf "V(%d)" i
+    | Vrai -> "Vrai"
+    | Faux -> "Faux"
+    | Et(p1, p2) -> Printf.sprintf "(%s) ∧ (%s)" (string_of_prop_aux p1) (string_of_prop_aux p2)
+    | Ou(p1, p2) -> Printf.sprintf "(%s) ∨ (%s)" (string_of_prop_aux p1) (string_of_prop_aux p2)
+    | Non(p) -> Printf.sprintf "¬(%s)" (string_of_prop_aux p)
+    | Imp(p1, p2) -> Printf.sprintf "(%s) → (%s)" (string_of_prop_aux p1) (string_of_prop_aux p2)
+    | Equiv(p1, p2) -> Printf.sprintf "(%s) ⇔ (%s)" (string_of_prop_aux p1) (string_of_prop_aux p2)
+  in
+  string_of_prop_aux prop
+
+(* Convertir une condition en chaîne de caractères *)
+let string_of_cond cond =
+  let rec string_of_cond_aux cond =
+    match cond with
+    | W(i) -> Printf.sprintf "W(%d)" i
+    | Vrai_bis -> "Vrai_bis"
+    | Faux_bis -> "Faux_bis"
+    | Si(p1, p2, p3) -> Printf.sprintf "Si(%s, %s, %s)" (string_of_cond_aux p1) (string_of_cond_aux p2) (string_of_cond_aux p3)
+  in
+  string_of_cond_aux cond
+  
+let string_of_result result =
+  match result with 
+  | true -> "True"
+  | false -> "False"
+
+(* Fonction de test *)
+let test_prop_to_cond_and_for_nor () =
+  (* Exemples de propositions *)
+  let prop1 = Vrai in
+  let prop2 = Et( V(1),Vrai) in
+
+  (* Convertir les propositions en conditions *)
+  let cond1 = prop_to_cond prop1 in
+  let cond2 = prop_to_cond prop2 in
+
+  (* Normaliser les conditions *)
+  let nor_cond1 = for_nor cond1 in
+  let nor_cond2 = for_nor cond2 in
+  
+  let eval_cond1 = eval nor_cond1 [] in
+  let eval_cond2 = eval nor_cond2 [] in
+
+  (* Afficher les résultats *)
+  print_endline "Propositions originales:";
+  print_endline (Printf.sprintf "Proposition 1: %s" (string_of_prop prop1));
+  print_endline (Printf.sprintf "Proposition 2: %s" (string_of_prop prop2));
+  print_newline ();
+
+  print_endline "Conditions converties:";
+  print_endline (Printf.sprintf "Condition 1: %s" (string_of_cond cond1));
+  print_endline (Printf.sprintf "Condition 2: %s" (string_of_cond cond2));
+  print_newline ();
+
+  print_endline "Conditions normalisées:";
+  print_endline (Printf.sprintf "Condition normalisée 1: %s" (string_of_cond nor_cond1));
+  print_endline (Printf.sprintf "Condition normalisée 2: %s" (string_of_cond nor_cond2)); 
+
+(* Afficher le résultat *)
+  if eval_cond1 then
+    print_endline "La proposition 1 est une tautologie."
+  else
+    print_endline "La proposition 1 est pas une tautologie.";
+  
+      
+(* Afficher le résultat *)
+  if eval_cond2 then
+    print_endline "La proposition 2 est une tautologie."
+  else
+    print_endline "La proposition 2 est pas une tautologie."
+;;
+
+(* Exécuter le test *)
+test_prop_to_cond_and_for_nor ()
