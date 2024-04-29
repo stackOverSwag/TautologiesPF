@@ -78,17 +78,25 @@ let string_of_cond cond =
     | Si(p1, p2, p3) -> Printf.sprintf "Si(%s, %s, %s)" (string_of_cond_aux p1) (string_of_cond_aux p2) (string_of_cond_aux p3)
   in
   string_of_cond_aux cond
-  
+    
 let string_of_result result =
   match result with 
   | true -> "True"
   | false -> "False"
+  
+let string_of_env env =
+  let rec string_of_env_aux env =
+    match env with
+    | [] -> ""
+    | (x, b)::rest -> Printf.sprintf "(%d, %s); %s" x (string_of_result b) (string_of_env_aux rest)
+  in
+  "[" ^ (string_of_env_aux env) ^ "]"
 
 (* Fonction de test *)
 let test_prop_to_cond_and_for_nor () =
   (* Exemples de propositions *)
   let prop1 = Vrai in
-  let prop2 = Et( V(1),Vrai) in
+  let prop2 = Et(V(1),Vrai) in
 
   (* Convertir les propositions en conditions *)
   let cond1 = prop_to_cond prop1 in
@@ -116,18 +124,10 @@ let test_prop_to_cond_and_for_nor () =
   print_endline (Printf.sprintf "Condition normalisée 1: %s" (string_of_cond nor_cond1));
   print_endline (Printf.sprintf "Condition normalisée 2: %s" (string_of_cond nor_cond2)); 
 
-(* Afficher le résultat *)
-  if eval_cond1 then
-    print_endline "La proposition 1 est une tautologie."
-  else
-    print_endline "La proposition 1 est pas une tautologie.";
+  print_endline "Résultats de l'évaluation:";
+  print_endline (Printf.sprintf "Résultat de l'évaluation de la proposition 1: %s" (string_of_result eval_cond1));
+  print_endline (Printf.sprintf "Résultat de l'évaluation de la proposition 2: %s" (string_of_result eval_cond2));
   
-      
-(* Afficher le résultat *)
-  if eval_cond2 then
-    print_endline "La proposition 2 est une tautologie."
-  else
-    print_endline "La proposition 2 est pas une tautologie."
 ;;
 
 (* Exécuter le test *)
